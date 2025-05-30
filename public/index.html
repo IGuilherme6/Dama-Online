@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo de Dama Online</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <h1>🏁 Jogo de Dama Online 🏁</h1>
+            
+            <div class="connection-status">
+                <div class="status-dot" id="connectionStatus"></div>
+                <span id="connectionText">Conectando...</span>
+            </div>
+        </div>
+
+        <div class="room-setup" id="roomSetup">
+            <input type="text" id="roomIdInput" class="room-input" placeholder="ID da Sala (ex: sala123)" value="sala1">
+            <button class="btn btn-primary" onclick="joinGame()">Entrar na Sala</button>
+        </div>
+
+        <div id="gameArea" style="display: none;">
+            <div class="game-info">
+                <div class="player-info">
+                    <div class="player-color white"></div>
+                    <span>Brancas: <span id="whiteStatus">Aguardando...</span></span>
+                </div>
+                
+                <div class="current-turn" id="currentTurn">
+                    Aguardando jogadores...
+                </div>
+                
+                <div class="player-info">
+                    <div class="player-color black"></div>
+                    <span>Pretas: <span id="blackStatus">Aguardando...</span></span>
+                </div>
+            </div>
+
+            <div id="statusMessage" class="status-message" style="display: none;"></div>
+
+            <div class="board-container">
+                <div class="board" id="gameBoard"></div>
+            </div>
+
+            <div class="controls">
+                <button class="btn btn-secondary" onclick="restartGame()">Novo Jogo</button>
+                <button class="btn btn-primary" onclick="leaveGame()">Sair da Sala</button>
+            </div>
+
+            <div class="game-stats">
+                <div class="stat">
+                    <div class="stat-value" id="whitePieces">12</div>
+                    <div class="stat-label">Peças Brancas</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="blackPieces">12</div>
+                    <div class="stat-label">Peças Pretas</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="moveCount">0</div>
+                    <div class="stat-label">Movimentos</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
