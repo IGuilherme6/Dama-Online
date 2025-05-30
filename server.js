@@ -28,13 +28,27 @@ const server = http.createServer((req, res) => {
     });
 });
 
+// Tratamento para erros em conexões TCP no servidor HTTP
+server.on('connection', (socket) => {
+    socket.on('error', (err) => {
+        console.error('Erro na conexão TCP:', err.message);
+    });
+});
+
+// Tratamento para erros no protocolo HTTP
+server.on('clientError', (err, socket) => {
+    console.error('Erro no cliente HTTP:', err.message);
+    if (!socket.destroyed) {
+        socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
+    }
+});
+
 const wss = new WebSocket.Server({ server });
 
 const rooms = {};
 
 function createInitialBoard() {
     const board = Array.from({ length: 8 }, () => Array(8).fill(null));
-
     for (let row = 0; row < 8; row++) {
         for (let col = 0; col < 8; col++) {
             if ((row + col) % 2 !== 0) {
@@ -99,35 +113,55 @@ function handleMove(roomId, fromRow, fromCol, toRow, toCol) {
     let valid = false;
     let captured = false;
 
-    if (Math.abs(rowDiff) === 1 && !piece.isKing) {
-        valid = (piece.color === 'white' && rowDiff === -1) || (piece.color === 'black' && rowDiff === 1);
-    } else if (Math.abs(rowDiff) === 2) {
-        const midRow = fromRow + rowDiff / 2;
-        const midCol = fromCol + colDiff / 2;
-        const midPiece = board[midRow][midCol];
-        if (midPiece && midPiece.color !== piece.color) {
-            board[midRow][midCol] = null;
-            captured = true;
-            valid = true;
-        }
-    } else if (piece.isKing) {
+    if (piece.isKing) {
         const stepRow = rowDiff > 0 ? 1 : -1;
         const stepCol = colDiff > 0 ? 1 : -1;
         let r = fromRow + stepRow;
         let c = fromCol + stepCol;
         let enemies = 0;
+        let enemyPos = null;
+
         while (r !== toRow && c !== toCol) {
             const midPiece = board[r][c];
             if (midPiece) {
-                if (midPiece.color === piece.color) return;
+                if (midPiece.color === piece.color) {
+                    // Não pode pular peça aliada
+                    return;
+                }
                 enemies++;
-                if (enemies > 1) return;
+                enemyPos = { r, c };
+                if (enemies > 1) {
+                    // Só pode capturar uma peça por movimento
+                    return;
+                }
             }
             r += stepRow;
             c += stepCol;
         }
-        if (enemies === 1) captured = true;
-        valid = true;
+
+        if (enemies === 1) {
+            // Remove a peça capturada
+            board[enemyPos.r][enemyPos.c] = null;
+            captured = true;
+            valid = true;
+        } else if (enemies === 0) {
+            // Movimento simples da dama (sem captura)
+            valid = true;
+        }
+    } else {
+        // Peças normais
+        if (Math.abs(rowDiff) === 1) {
+            valid = (piece.color === 'white' && rowDiff === -1) || (piece.color === 'black' && rowDiff === 1);
+        } else if (Math.abs(rowDiff) === 2) {
+            const midRow = fromRow + rowDiff / 2;
+            const midCol = fromCol + colDiff / 2;
+            const midPiece = board[midRow][midCol];
+            if (midPiece && midPiece.color !== piece.color) {
+                board[midRow][midCol] = null;
+                captured = true;
+                valid = true;
+            }
+        }
     }
 
     if (valid) {
@@ -171,6 +205,10 @@ function checkGameOver(roomId) {
 wss.on('connection', (ws) => {
     let currentRoomId = null;
     let assignedColor = null;
+
+    ws.on('error', (err) => {
+        console.error('Erro no socket WebSocket:', err.message);
+    });
 
     ws.on('message', (message) => {
         let data;
@@ -237,7 +275,6 @@ wss.on('connection', (ws) => {
             type: 'player_disconnected',
         });
 
-        // Optionally, delete the room if empty
         if (!room.white && !room.black) {
             delete rooms[currentRoomId];
         }
